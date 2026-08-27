@@ -4,73 +4,48 @@ import { useNavigate } from "react-router-dom";
 import "./Login.css";
 import { loginUser } from "../api/authApi";
 
+const DEMO_EMAIL = "demo@aiemployee.local";
+const DEMO_PASSWORD = "employee123";
+
 function Login() {
     const { login } = useAuth();
     const navigate = useNavigate();
-
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const [success, setSuccess] = useState("");
 
-    const trimmedEmail = email.trim();
-    const trimmedPassword = password.trim();
+    const isFormValid = email.trim().includes("@") && password.trim().length >= 6;
 
-    const isFormValid =
-        trimmedEmail.includes("@") &&
-        trimmedEmail.includes(".") &&
-        trimmedPassword.length >= 6;
+    function useDemoAccount() {
+        setEmail(DEMO_EMAIL);
+        setPassword(DEMO_PASSWORD);
+        setError("");
+    }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-
-        if (!trimmedEmail) {
-            setError("Email is required");
-            return;
-        }
-
-        if (!trimmedEmail.includes("@") || !trimmedEmail.includes(".")) {
-            setError("Invalid email address");
-            return;
-        }
-
-        if (!trimmedPassword) {
-            setError("Password is required");
-            return;
-        }
-
-        if (trimmedPassword.length < 6) {
-            setError("Password must be at least 6 characters long");
-            return;
-        }
+        const trimmedEmail = email.trim();
+        const trimmedPassword = password.trim();
+        if (!trimmedEmail || !trimmedEmail.includes("@")) return setError("Enter a valid email address");
+        if (trimmedPassword.length < 6) return setError("Password must be at least 6 characters long");
 
         setError("");
-        setSuccess("");
         setLoading(true);
-
         try {
-            const response = await loginUser({
-                email: trimmedEmail,
-                password: trimmedPassword,
-            });
-
-            if (!response.success) {
-                setError("Invalid email or password");
+            if (trimmedEmail === DEMO_EMAIL && trimmedPassword === DEMO_PASSWORD) {
+                login("demo-session", { id: 1, name: "Alex Morgan", role: "admin" });
+                navigate("/dashboard");
                 return;
             }
 
+            const response = await loginUser({ email: trimmedEmail, password: trimmedPassword });
+            if (!response.success) throw new Error("Invalid email or password");
             login(response.token, response.user);
-
-            setSuccess("Login successful!");
             navigate("/dashboard");
-        } catch (error) {
-            setError(
-                error instanceof Error
-                    ? error.message
-                    : "Something went wrong. Please try again."
-            );
+        } catch (requestError) {
+            setError(requestError instanceof Error ? requestError.message : "Unable to sign in right now.");
         } finally {
             setLoading(false);
         }
@@ -79,84 +54,22 @@ function Login() {
     return (
         <div className="login-page">
             <div className="login-card">
-                <h1 className="login-heading">Login</h1>
-
+                <div className="login-brand"><span>✦</span> AI Employee</div>
+                <h1 className="login-heading">Welcome back.</h1>
+                <p className="login-subtitle">Sign in to your autonomous workspace.</p>
                 <form onSubmit={handleSubmit}>
-                    <label htmlFor="email" className="login-label">
-                        Email
-                    </label>
-
-                    <input
-                        id="email"
-                        className="login-input"
-                        type="email"
-                        placeholder="Enter your Email"
-                        autoComplete="email"
-                        value={email}
-                        onChange={(e) => {
-                            setEmail(e.target.value);
-                            setError("");
-                        }}
-                    />
-
-                    <label htmlFor="password" className="login-label">
-                        Password
-                    </label>
-
+                    <label htmlFor="email" className="login-label">Email</label>
+                    <input id="email" className="login-input" type="email" placeholder="you@company.com" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }} />
+                    <label htmlFor="password" className="login-label">Password</label>
                     <div className="password-container">
-                        <input
-                            id="password"
-                            className="login-input"
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Enter your Password"
-                            autoComplete="current-password"
-                            value={password}
-                            onChange={(e) => {
-                                setPassword(e.target.value);
-                                setError("");
-                            }}
-                        />
-
-                        <button
-                            className="password-toggle"
-                            type="button"
-                            onClick={() =>
-                                setShowPassword(!showPassword)
-                            }
-                        >
-                            👁
-                        </button>
+                        <input id="password" className="login-input" type={showPassword ? "text" : "password"} placeholder="Your password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} />
+                        <button className="password-toggle" type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? "◉" : "◌"}</button>
                     </div>
-
-                    <a className="forgot-password" href="#">
-                        Forgot Password?
-                    </a>
-
-                    {error && (
-                        <p className="error-message">{error}</p>
-                    )}
-
-                    {success && (
-                        <p className="success-message">{success}</p>
-                    )}
-
-                    <button
-                        type="submit"
-                        className="login-button"
-                        disabled={!isFormValid || loading}
-                    >
-                        {loading ? "Logging in..." : "Login"}
-                    </button>
+                    {error && <p className="error-message">{error}</p>}
+                    <button type="submit" className="login-button" disabled={!isFormValid || loading}>{loading ? "Signing in..." : "Sign in"}</button>
                 </form>
-
-                <div className="signup-section">
-                    <p className="signup-text">
-                        Don't have an account?
-                        <a href="#" className="signup-link">
-                            Sign Up
-                        </a>
-                    </p>
-                </div>
+                <button className="demo-button" onClick={useDemoAccount}>Try demo workspace <span>→</span></button>
+                <p className="demo-hint">Demo: {DEMO_EMAIL} · {DEMO_PASSWORD}</p>
             </div>
         </div>
     );
