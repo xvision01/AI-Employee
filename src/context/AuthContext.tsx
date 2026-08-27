@@ -1,45 +1,43 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { setAuthToken } from "../api/apiClient";
 
 type User = { id: number; name: string; role: "admin" | "student" };
-type StoredSession = { token: string; user: User };
-type AuthContextType = { isLoggedIn: boolean; user: User | null; token: string | null; login: (token: string, user: User) => void; logout: () => void };
+type Session = { token: string; user: User };
+type AuthContextValue = Session & { logout: () => void };
 
-const AuthContext = createContext<AuthContextType | null>(null);
 const SESSION_KEY = "ai-employee-session";
+const AuthContext = createContext<AuthContextValue | null>(null);
 
-function readSession(): StoredSession | null {
-    try {
-        const raw = localStorage.getItem(SESSION_KEY);
-        return raw ? JSON.parse(raw) as StoredSession : null;
-    } catch { return null; }
+function loadSession(): Session | null {
+  try {
+    const value = localStorage.getItem(SESSION_KEY);
+    return value ? JSON.parse(value) as Session : null;
+  } catch {
+    return null;
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [session, setSession] = useState<StoredSession | null>(readSession);
-    const token = session?.token ?? null;
-    const user = session?.user ?? null;
+  const [session, setSession] = useState<Session | null>(loadSession);
 
-    function login(newToken: string, newUser: User) {
-        const next = { token: newToken, user: newUser };
-        setSession(next);
-        setAuthToken(newToken);
-        localStorage.setItem(SESSION_KEY, JSON.stringify(next));
-    }
+  useEffect(() => {
+    setAuthToken(session?.token ?? null);
+  }, [session]);
 
-    function logout() {
-        setSession(null);
-        setAuthToken(null);
-        localStorage.removeItem(SESSION_KEY);
-    }
+  function logout() {
+    setSession(null);
+    localStorage.removeItem(SESSION_KEY);
+  }
 
-    if (token) setAuthToken(token);
+  if (!session) {
+    return <AuthContext.Provider value={{ token: "", user: null as never, logout }}>{children}</AuthContext.Provider>;
+  }
 
-    return <AuthContext.Provider value={{ isLoggedIn: token !== null, user, token, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ ...session, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-    const auth = useContext(AuthContext);
-    if (!auth) throw new Error("useAuth must be used inside AuthProvider");
-    return auth;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used inside AuthProvider");
+  return context;
 }
