@@ -4,6 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { loginUser } from "../api/authApi";
 import "./Login.css";
 
+const DEV_EMAIL = "demo@aiemployee.local";
+const DEV_PASSWORD = "employee123";
+
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -12,6 +15,12 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  function useDemoAccount() {
+    setEmail(DEV_EMAIL);
+    setPassword(DEV_PASSWORD);
+    setError("");
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -49,6 +58,12 @@ export default function Login() {
           {error && <p className="error-message">{error}</p>}
           <button type="submit" className="login-button" disabled={loading}>{loading ? "Signing in..." : "Sign in"}</button>
         </form>
+        <div className="dev-credentials">
+          <strong>Development account</strong>
+          <p>Email: <code>{DEV_EMAIL}</code></p>
+          <p>Password: <code>{DEV_PASSWORD}</code></p>
+          <button type="button" onClick={useDemoAccount}>Use these credentials</button>
+        </div>
       </div>
     </div>
   );
