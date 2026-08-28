@@ -8,14 +8,15 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tasks     Task[]
-  agentRuns AgentRun[]
+  id         String       @id @default(cuid())
+  email      String       @unique
+  name       String
+  password   String
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  tasks      Task[]
+  agentRuns  AgentRun[]
+  activities Activity[]
 }
 
 model Task {
@@ -34,8 +35,19 @@ model AgentRun {
   id        String   @id @default(cuid())
   task      String
   output    String?
-  status    String   @default("completed")
+  status    String   @default("running")
   createdAt DateTime @default(now())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  message   String
+  type      String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
