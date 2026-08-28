@@ -1,13 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { setAuthToken } from "../api/apiClient";
+import type { User } from "../api/authApi";
 
-type User = { id: number; name: string; role: "admin" | "student" };
 type Session = { token: string; user: User };
-type AuthContextValue = {
-  session: Session | null;
-  login: (token: string, user: User) => void;
-  logout: () => void;
-};
+type AuthContextValue = { session: Session | null; login: (session: Session) => void; logout: () => void };
 
 const SESSION_KEY = "ai-employee-session";
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -24,12 +20,9 @@ function loadSession(): Session | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(loadSession);
 
-  useEffect(() => {
-    setAuthToken(session?.token ?? null);
-  }, [session]);
+  useEffect(() => setAuthToken(session?.token ?? null), [session]);
 
-  function login(token: string, user: User) {
-    const nextSession = { token, user };
+  function login(nextSession: Session) {
     setSession(nextSession);
     localStorage.setItem(SESSION_KEY, JSON.stringify(nextSession));
   }
@@ -40,11 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(SESSION_KEY);
   }
 
-  return (
-    <AuthContext.Provider value={{ session, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={{ session, login, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
