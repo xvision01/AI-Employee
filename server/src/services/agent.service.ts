@@ -1,25 +1,43 @@
+import { prisma } from "../lib/prisma.js";
 import { env, requireOpenAiKey } from "../config/env.js";
 
 export const agentService = {
-  async run(task: string) {
-    const apiKey = requireOpenAiKey();
-
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: env.openAiModel,
-        instructions: "You are an AI employee. Turn requests into concrete, useful work. Explain the plan, results, assumptions, and anything requiring human approval. Never claim an external action happened unless a connected tool actually performed it.",
-        input: task,
-        tools: [{ type: "web_search" }],
-      }),
+  async run(userId: string, task: string) {
+    const run = await prisma.agentRun.create({
+      data: { userId, task, status: "running" },
     });
 
-    const data = await response.json() as { output_text?: string; error?: { message?: string } };
-    if (!response.ok) throw new Error(data.error?.message ?? "AI request failed");
-    return data.output_text ?? "No output returned.";
+    try {
+      const response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${requireOpenAiKey()}`,
+        },
+        body: JSON.stringify({
+          model: env.openAiModel,
+          instructions: "You are an AI employee. Turn requests into concrete, useful work. Never claim an external action happened unless a connected tool actually performed it.",
+          input: task,
+          tools: [{ type: "web_search" }],
+        }),
+      });
+
+      const data = await response.json() as { output_text?: string; error?: { message?: string } };
+      if (!response.ok) throw new Error(data.error?.message ?? "AI request failed");
+
+      const output = data.output_text ?? "No output returned.";
+      await prisma.agentRun.update({ where: { id: run.id }, data: { output, status: "completed" } });
+      return output;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "AI request failed";
+      await prisma.agentRun.update({ where: { id: run.id }, data: { output: message, status: "failed" } });
+      throw error;
+    }
   },
+
+  listRuns: (userId: string) => prisma.agentRun.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  }),
 };
